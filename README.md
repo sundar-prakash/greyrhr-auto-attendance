@@ -2,129 +2,163 @@
 
 Node.js + Playwright script that logs into GreytHR and signs you **in** during office hours (or before) and **out** after office hours. Skips weekends and configured leave dates.
 
-Runs fine on a small Linux VPS or laptop: each hourly run is short-lived (headless Chromium), then exits — it does **not** keep a browser open all day.
+Each run is short-lived (headless Chromium → login → click → exit in ~30–90 s). No always-on browser.
 
-## Requirements
+---
 
-- Linux (Ubuntu/Debian recommended)
-- Node.js 18+ (`node -v`)
-- Cron
+## Quick Start (Docker) ⚡
 
-## 1. Install
+> The easiest way to run — just `docker compose up`.
 
-```bash
-# Node.js (if missing) — Ubuntu/Debian example
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
+### Prerequisites
 
-# Project
-cd /path/to/test   # folder that contains index.js and package.json
-npm install
-npx playwright install chromium
-sudo npx playwright install-deps chromium   # system libraries for headless Chromium
-```
+- Docker Engine 20+ and Docker Compose v2 (`docker compose version`)
 
-## 2. Configure
+### 1. Configure
 
 ```bash
 cp .env.example .env
-nano .env   # or any editor
+nano .env          # fill in your GreytHR credentials + leave dates
+```
+
+### 2. Start
+
+```bash
+docker compose up -d          # build & start in background
+```
+
+That's it. The container runs a cron daemon internally with this schedule (Mon–Fri, IST):
+
+| Time | Action |
+|------|--------|
+| **9:20 AM** | Morning sign-in (+ 0–10 min random jitter) |
+| **10 AM – 6 PM** (hourly) | Safety-net check (instant, no delay) |
+| **6:30 PM** | Evening sign-out (+ 0–10 min random jitter) |
+
+### 3. Monitor
+
+```bash
+docker logs -f greythr-attendance     # live log stream
+```
+
+### 4. Stop
+
+```bash
+docker compose down                   # stop & remove container
+```
+
+### 5. Update leave dates or credentials
+
+Edit `.env`, then restart:
+
+```bash
+docker compose down && docker compose up -d
+```
+
+### One-off test run
+
+Run the script immediately (outside cron) to verify your credentials:
+
+```bash
+docker compose run --rm attendance node index.js
+```
+
+---
+
+## Environment Variables
+
+```bash
+cp .env.example .env
 ```
 
 | Variable | Purpose |
-|----------|---------| 
-| `GREYTHR_URL` | GreytHR URL |
+|----------|---------|
+| `GREYTHR_URL` | GreytHR portal URL |
 | `LOGIN_ID` / `PASSWORD` | Login credentials |
 | `LEAVE_DATES` | Comma-separated dates to skip (`YYYY-MM-DD`) |
 | `OFFICE_START_HOUR` / `OFFICE_START_MINUTE` | Office start (default 9:30) |
 | `OFFICE_END_HOUR` / `OFFICE_END_MINUTE` | Office end (default 18:30) |
-| `BUFFER_MAX_MINUTES` | Max random jitter in minutes (default 10). Sign-in/out times are randomised within this window each run. |
-| `HEADLESS` | `true` (default) or `false` to show the browser |
+| `BUFFER_MAX_MINUTES` | Max random jitter in minutes (default 10) |
+| `HEADLESS` | `true` (default) or `false` to show browser |
 
 Behavior by local time:
 
 - **Before start** → ensure **Sign In**
 - **Work hours** → ensure **Sign In**
 - **After end** → ensure **Sign Out**
-- **Weekend / leave** → exit without doing anything
+- **Weekend / leave** → skip
 
-The script adds a random delay of **0 – BUFFER_MAX_MINUTES** before acting, so actual sign-in/out times are never the same two days in a row.
+The script adds a random delay of **0 – BUFFER_MAX_MINUTES** before acting, so actual sign-in/out times vary each day.
 
-Do not commit `.env` (it is gitignored).
+> **Do not commit `.env`** — it is gitignored.
 
-## 3. Test manually
+---
+
+## Manual Setup (without Docker)
+
+<details>
+<summary>Click to expand — Node.js + system cron</summary>
+
+### Requirements
+
+- Linux (Ubuntu/Debian recommended)
+- Node.js 18+
+- Cron
+
+### Install
 
 ```bash
-cd /path/to/test
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+cd /path/to/attendance
+npm install
+npx playwright install chromium
+sudo npx playwright install-deps chromium
+```
+
+### Test manually
+
+```bash
 node index.js
-```
-
-To watch the browser while debugging, set in `.env`:
-
-```env
-HEADLESS=false
-```
-
-Or one-off:
-
-```bash
+# Or with visible browser:
 HEADLESS=false node index.js
 ```
 
-## 4. Cron — targeted sign-in/out + hourly safety checks
-
-Schedule **three cron entries**: one for morning sign-in (with jitter), hourly checks during work hours (instant, no delay), and evening sign-out (with jitter).
+### Cron schedule
 
 ```bash
 crontab -e
 ```
 
-Add (replace paths with yours):
-
 ```cron
 # GreytHR attendance (Mon–Fri)
-#
-# 1. Morning sign-in at 9:20 AM (script adds 0–10 min jitter → 9:20–9:30 AM)
-# 2. Hourly safety checks 10 AM – 6 PM (instant — catches accidental sign-outs)
-# 3. Evening sign-out at 6:30 PM (script adds 0–10 min jitter → 6:30–6:40 PM)
-20 9 * * 1-5    cd /path/to/test && /usr/bin/node index.js >> /path/to/test/cron.log 2>&1
-0 10-18 * * 1-5 cd /path/to/test && /usr/bin/node index.js >> /path/to/test/cron.log 2>&1
-30 18 * * 1-5   cd /path/to/test && /usr/bin/node index.js >> /path/to/test/cron.log 2>&1
-```
-
-Find your Node binary if unsure:
-
-```bash
-which node
+20 9 * * 1-5    cd /path/to/attendance && /usr/bin/node index.js >> cron.log 2>&1
+0 10-18 * * 1-5 cd /path/to/attendance && /usr/bin/node index.js >> cron.log 2>&1
+30 18 * * 1-5   cd /path/to/attendance && /usr/bin/node index.js >> cron.log 2>&1
 ```
 
 ### Timezone
 
-Cron uses the system timezone. Check/set if needed:
-
 ```bash
 timedatectl
-# e.g. sudo timedatectl set-timezone Asia/Kolkata
+# sudo timedatectl set-timezone Asia/Kolkata
 ```
 
-### Verify cron
+</details>
 
-```bash
-crontab -l
-tail -f /path/to/test/cron.log
-```
+---
 
-## Resource use
+## Resource Usage
 
 | Mode | Notes |
-|------|--------|
-| Headless (default) | Light: Chromium starts, does login + click, exits (~30–90s). Fine for hourly cron. |
-| `HEADLESS=false` | Needs a display; use only for debugging. |
-
-No always-on browser process — only one short run per hour.
+|------|-------|
+| Headless (default) | Chromium starts → login + click → exits (~30–90 s). Fine for hourly cron. |
+| `HEADLESS=false` | Needs a display; debugging only. |
 
 ## Troubleshooting
 
-- **Neither Sign In nor Sign Out detected** — dashboard widget slow or UI changed; run with `HEADLESS=false` once and confirm the button text.
-- **Cron runs but nothing in log** — wrong path to `node` or project; use absolute paths.
-- **Playwright browser missing** — re-run `npx playwright install chromium` as the same user that owns the crontab.
+- **Neither Sign In nor Sign Out detected** — dashboard widget slow or UI changed; test with `HEADLESS=false`.
+- **Container exits immediately** — check `docker logs greythr-attendance` for errors.
+- **Wrong timezone** — set `TZ=Asia/Kolkata` in `docker-compose.yml` (default).
+- **Playwright browser missing** — rebuild: `docker compose build --no-cache`.

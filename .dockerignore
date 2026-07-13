@@ -1,0 +1,7 @@
+node_modules/
+.env
+.git/
+cron.log
+*.md
+.dockerignore
+.gitignore

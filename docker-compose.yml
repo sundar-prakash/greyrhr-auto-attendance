@@ -1,0 +1,16 @@
+services:
+  attendance:
+    build: .
+    container_name: greythr-attendance
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Kolkata
+      # Always headless inside Docker
+      - HEADLESS=true
+    volumes:
+      # Bind-mount cron.log so it appears directly in your project folder
+      - ./cron.log:/app/cron.log
+    # Uncomment to override the default cron schedule with a one-off test:
+    # command: ["node", "index.js"]
