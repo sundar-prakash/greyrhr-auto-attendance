@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LOG=/app/cron.log
+LOG=/app/logs/cron.log
+
+# Ensure log file exists (mounted dir may be empty on first run)
+mkdir -p /app/logs
+touch "$LOG"
 
 # ── 1. Pass ALL env vars into cron's environment ──
 # Cron runs in a minimal shell without Docker env vars,
@@ -17,13 +21,13 @@ cat <<'CRON' > /etc/cron.d/attendance
 SHELL=/bin/bash
 
 # Morning sign-in
-20 9 * * 1-5    root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/cron.log 2>&1
+20 9 * * 1-5    root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/logs/cron.log 2>&1
 
 # Hourly safety checks (10 AM – 6 PM)
-0 10-18 * * 1-5 root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/cron.log 2>&1
+0 10-18 * * 1-5 root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/logs/cron.log 2>&1
 
 # Evening sign-out
-30 18 * * 1-5   root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/cron.log 2>&1
+30 18 * * 1-5   root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/logs/cron.log 2>&1
 CRON
 
 # Crontab file must end with newline and have correct perms

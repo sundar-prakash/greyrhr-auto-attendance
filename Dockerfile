@@ -34,7 +34,6 @@ COPY index.js ./
 COPY entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 
-# Cron log (tailable) — bind-mounted to host's ./cron.log
-RUN touch /app/cron.log
+
 
 ENTRYPOINT ["/app/entrypoint.sh"]

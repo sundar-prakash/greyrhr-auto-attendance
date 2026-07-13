@@ -10,7 +10,7 @@ services:
       # Always headless inside Docker
       - HEADLESS=true
     volumes:
-      # Bind-mount cron.log so it appears directly in your project folder
-      - ./cron.log:/app/cron.log
+      # Mount a logs directory — Docker creates it automatically
+      - ./logs:/app/logs
     # Uncomment to override the default cron schedule with a one-off test:
     # command: ["node", "index.js"]
