@@ -32,8 +32,6 @@ CRON
 # Crontab file must end with newline and have correct perms
 echo "" >> /etc/cron.d/attendance
 chmod 0644 /etc/cron.d/attendance
-crontab /etc/cron.d/attendance
-
 # ── 3. Startup banner + verify cron loaded ──
 echo "" >> "$LOG"
 echo "========================================" >> "$LOG"
@@ -43,7 +41,7 @@ echo "[$(date)] Next sign-in:  Mon–Fri 9:20 AM" | tee -a "$LOG"
 echo "[$(date)] Safety checks: Mon–Fri every hour 10 AM–6 PM" | tee -a "$LOG"
 echo "[$(date)] Next sign-out: Mon–Fri 6:30 PM" | tee -a "$LOG"
 echo "[$(date)] Loaded crontab:" | tee -a "$LOG"
-crontab -l 2>&1 | tee -a "$LOG"
+cat /etc/cron.d/attendance 2>&1 | tee -a "$LOG"
 echo "========================================" >> "$LOG"
 
 # Run cron in foreground and stream logs so `docker logs` works too
