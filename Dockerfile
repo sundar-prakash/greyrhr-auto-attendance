@@ -7,11 +7,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 # System timezone — cron uses this; defaults to IST
 ENV TZ=Asia/Kolkata
 
-# Install cron, timezone data, and Playwright system dependencies
+# Install cron, timezone data, dos2unix, and Playwright system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         cron \
         tzdata \
+        dos2unix \
         # Playwright Chromium system deps (matches `npx playwright install-deps chromium`)
         libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
         libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
@@ -32,8 +33,8 @@ RUN npx playwright install chromium
 # ---------- App ----------
 COPY index.js ./
 COPY entrypoint.sh ./
-RUN chmod +x entrypoint.sh
 
-
+# Fix Windows CRLF → Unix LF (the #1 reason cron silently fails on Windows-built images)
+RUN dos2unix entrypoint.sh && chmod +x entrypoint.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]

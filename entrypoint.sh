@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LOG=/app/logs/cron.log
-
-# Ensure log file exists (mounted dir may be empty on first run)
-mkdir -p /app/logs
+# Log file — written to the mounted project directory so it appears
+# as a real file right in the project root on the host.
+LOG=/app/output/cron.log
 touch "$LOG"
 
 # ── 1. Pass ALL env vars into cron's environment ──
@@ -21,13 +20,13 @@ cat <<'CRON' > /etc/cron.d/attendance
 SHELL=/bin/bash
 
 # Morning sign-in
-20 9 * * 1-5    root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/logs/cron.log 2>&1
+20 9 * * 1-5    root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/output/cron.log 2>&1
 
 # Hourly safety checks (10 AM – 6 PM)
-0 10-18 * * 1-5 root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/logs/cron.log 2>&1
+0 10-18 * * 1-5 root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/output/cron.log 2>&1
 
 # Evening sign-out
-30 18 * * 1-5   root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/logs/cron.log 2>&1
+30 18 * * 1-5   root  . /etc/environment; cd /app && /usr/local/bin/node index.js >> /app/output/cron.log 2>&1
 CRON
 
 # Crontab file must end with newline and have correct perms
@@ -35,7 +34,7 @@ echo "" >> /etc/cron.d/attendance
 chmod 0644 /etc/cron.d/attendance
 crontab /etc/cron.d/attendance
 
-# ── 3. Start cron + tail logs ──
+# ── 3. Startup banner + verify cron loaded ──
 echo "" >> "$LOG"
 echo "========================================" >> "$LOG"
 echo "[$(date)] ✅ Attendance container started. Cron is running." | tee -a "$LOG"
@@ -43,6 +42,8 @@ echo "[$(date)] Timezone: $(cat /etc/timezone)" | tee -a "$LOG"
 echo "[$(date)] Next sign-in:  Mon–Fri 9:20 AM" | tee -a "$LOG"
 echo "[$(date)] Safety checks: Mon–Fri every hour 10 AM–6 PM" | tee -a "$LOG"
 echo "[$(date)] Next sign-out: Mon–Fri 6:30 PM" | tee -a "$LOG"
+echo "[$(date)] Loaded crontab:" | tee -a "$LOG"
+crontab -l 2>&1 | tee -a "$LOG"
 echo "========================================" >> "$LOG"
 
 # Run cron in foreground and stream logs so `docker logs` works too

@@ -10,7 +10,9 @@ services:
       # Always headless inside Docker
       - HEADLESS=true
     volumes:
-      # Mount a logs directory — Docker creates it automatically
-      - ./logs:/app/logs
+      # Mount project root so entrypoint can create cron.log as a FILE directly in it.
+      # (Mounting a single file like ./cron.log:/app/cron.log fails if the file doesn't
+      #  exist yet — Docker silently creates it as a directory instead.)
+      - .:/app/output
     # Uncomment to override the default cron schedule with a one-off test:
     # command: ["node", "index.js"]
