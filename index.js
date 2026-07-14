@@ -161,11 +161,12 @@ async function run() {
   // 3. Launch browser (headless by default; set HEADLESS=false to debug)
   const headless = process.env.HEADLESS !== "false";
   console.log(`Launching browser (headless=${headless})...`);
-  const browser = await chromium.launch({ headless });
-  const context = await browser.newContext();
-  const page = await context.newPage();
-
+  let browser;
+  
   try {
+    browser = await chromium.launch({ headless });
+    const context = await browser.newContext();
+    const page = await context.newPage();
     // Navigation & Login
     await page.goto(URL);
     await page.getByRole("textbox", { name: "Login ID" }).fill(LOGIN_ID);
@@ -197,9 +198,11 @@ async function run() {
       await ensureSignedIn(page);
     }
   } catch (error) {
-    console.error("[ERROR] Automation failed during runtime:", error);
+    console.error("[ERROR] Automation failed during runtime:", error.message || error);
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+    }
     console.log("Browser closed. Process completed.");
   }
 }
